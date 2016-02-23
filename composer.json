@@ -1,0 +1,15 @@
+{
+    "name": "austp/ProAuth",
+    "description": "PHP OAuth2 Library",
+    "authors": [
+        {
+            "name": "Aust Probst",
+            "email": "austp17@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "ProAuth\\": "src"
+        }
+    }
+}
