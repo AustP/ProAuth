@@ -1,13 +1,21 @@
 {
     "name": "austp/proauth",
     "description": "PHP OAuth2 Library",
+    "keywords": [
+        "php", "oauth", "oauth2"
+    ],
+    "homepage": "https://github.com/AustP/ProAuth",
+    "license": "MIT",
     "authors": [
         {
             "name": "Aust Probst",
             "email": "austp17@gmail.com"
         }
     ],
-    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/AustP/ProAuth/issues",
+        "source": "https://github.com/AustP/ProAuth"
+    },
     "autoload": {
         "psr-4": {
             "ProAuth\\": "src"
