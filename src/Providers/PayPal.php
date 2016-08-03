@@ -37,9 +37,10 @@ class PayPal extends \ProAuth\OAuth2
 
     /**
      * Authorize the client (if no token is set, make a request to get one)
-     * @param  string $token        The token
+     * @param string $token The token
+     * @param string $refreshToken Unused
      */
-    public function authorize($token = '')
+    public function authorize($token = '', $refreshToken = '')
     {
         if ($token) {
             $this->token = $token;
