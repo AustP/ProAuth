@@ -61,4 +61,13 @@ class PayPal extends \ProAuth\OAuth2
 
         return parent::curl($method, $url, $data, $headers);
     }
+    
+    /**
+     * Puts the provider into sandbox mode
+     */
+    public function sandbox()
+    {
+        $this->apiEndpoint = 'https://api.sandbox.paypal.com/v1/';
+        $this->tokenEndpoint = 'https://api.sandbox.paypal.com/v1/oauth2/token';
+    }
 }
