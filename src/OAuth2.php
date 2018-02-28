@@ -426,8 +426,10 @@ abstract class OAuth2
      */
     public function refresh()
     {
-        return $this->grant('refresh_token', [
-            'refresh_token' => $this->refreshToken
-        ]);
+        if ($this->refreshToken) {
+            return $this->grant('refresh_token', [
+                'refresh_token' => $this->refreshToken
+            ]);
+        }
     }
 }
