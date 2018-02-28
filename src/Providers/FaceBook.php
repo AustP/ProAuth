@@ -5,6 +5,12 @@ namespace ProAuth\Providers;
 class FaceBook extends \ProAuth\OAuth2
 {
     /**
+     * The API endpoint
+     * @var string
+     */
+    public $apiEndpoint = 'https://graph.facebook.com/';
+
+    /**
      * The authorization endpoint
      * @var string
      */
@@ -15,10 +21,4 @@ class FaceBook extends \ProAuth\OAuth2
      * @var string
      */
     public $tokenEndpoint = 'https://graph.facebook.com/v2.5/oauth/access_token';
-
-    /**
-     * The API endpoint
-     * @var string
-     */
-    public $apiEndpoint = 'https://graph.facebook.com/';
 }

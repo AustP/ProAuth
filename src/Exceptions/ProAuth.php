@@ -4,7 +4,7 @@ namespace ProAuth\Exceptions;
 
 class ProAuth extends \Exception
 {
-    public function __construct($errors)
+    public function __construct($errors, $code = 0)
     {
         if (is_array($errors)) {
             $message = '';
@@ -18,7 +18,7 @@ class ProAuth extends \Exception
         } else {
             $message = $errors;
         }
-
-        $this->message = $message;
+        
+        parent::__construct($message, $code);
     }
 }

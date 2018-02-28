@@ -5,24 +5,22 @@ namespace ProAuth\Providers;
 class PayPal extends \ProAuth\OAuth2
 {
     /**
-     * The access token endpoint
-     * @var string
-     */
-    public $tokenEndpoint = 'https://api.paypal.com/v1/oauth2/token';
-
-    /**
      * The API endpoint
      * @var string
      */
     public $apiEndpoint = 'https://api.paypal.com/v1/';
 
     /**
-     * Headers to include when getting token (when connecting to token endpoint)
-     * @var array
+     * The default Content-Type header to use
+     * @var string
      */
-    public $tokenHeaders = [
-        'Content-Type' => 'application/x-www-form-urlencoded'
-    ];
+    protected $defaultContentType = 'application/json';
+
+    /**
+     * The access token endpoint
+     * @var string
+     */
+    public $tokenEndpoint = 'https://api.paypal.com/v1/oauth2/token';
 
     /**
      * Setup PayPal Provider
@@ -31,37 +29,21 @@ class PayPal extends \ProAuth\OAuth2
      */
     public function __construct($id, $secret)
     {
-        $this->id = $id;
-        $this->secret = $secret;
+        parent::__construct($id, $secret, '', []);
+
+        $this->CURLOPT_USERPWD = "{$this->id}:{$this->secret}";
     }
 
     /**
-     * Authorize the client (if no token is set, make a request to get one)
-     * @param string $token The token
-     * @param string $refreshToken Unused
+     * PayPal doesn't support authorization_code grants
+     * so instead of prompting, execute the client_credentials grant
+     * @param array $data Unused
      */
-    public function authorize($token = '', $refreshToken = '')
+    public function prompt($data = [])
     {
-        if ($token) {
-            $this->token = $token;
-        } else {
-            $this->CURLOPT_USERPWD = "{$this->id}:{$this->secret}";
-            $this->grant('client_credentials');
-        }
+        $this->grant('client_credentials');
     }
 
-    /**
-     * Makes a curl connection
-     */
-    protected function curl($method, $url, $data = [], $headers = [])
-    {
-        if (!isset($headers['Content-Type'])) {
-            $headers['Content-Type'] = 'application/json';
-        }
-
-        return parent::curl($method, $url, $data, $headers);
-    }
-    
     /**
      * Puts the provider into sandbox mode
      */

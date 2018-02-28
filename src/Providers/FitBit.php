@@ -5,6 +5,12 @@ namespace ProAuth\Providers;
 class FitBit extends \ProAuth\OAuth2
 {
     /**
+     * The API endpoint
+     * @var string
+     */
+    public $apiEndpoint = 'https://api.fitbit.com/1/';
+
+    /**
      * The authorization endpoint
      * @var string
      */
@@ -17,22 +23,17 @@ class FitBit extends \ProAuth\OAuth2
     public $tokenEndpoint = 'https://api.fitbit.com/oauth2/token';
 
     /**
-     * The API endpoint
-     * @var string
+     * Setup a FitBit provider
+     * @param string $id       The client ID
+     * @param string $secret   The client secret
+     * @param string $callback The callback URL
+     * @param array  $scope    The scope wanted
      */
-    public $apiEndpoint = 'https://api.fitbit.com/1/';
-
-    /**
-     * Gets the access and refresh tokens from the token endpoint
-     * @param  string $type The grant type to use
-     * @param  array  $data Data to send to the endpoint
-     * @return array
-     */
-    public function grant($type, $data = [])
+    public function __construct($id, $secret, $callback, $scope)
     {
-        $base64 = base64_encode($this->id . ':' . $this->secret);
-        $this->tokenHeaders = ['Authorization' => 'Basic ' . $base64];
+        parent::__construct($id, $secret, $callbak, $scope);
 
-        return parent::grant($type, $data);
+        $base64 = base64_encode($this->id . ':' . $this->secret);
+        $this->tokenHeaders['Authorization'] = 'Basic ' . $base64;
     }
 }

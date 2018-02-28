@@ -5,34 +5,16 @@ namespace ProAuth;
 abstract class OAuth2
 {
     /**
-     * The authorization endpoint
-     * @var string
-     */
-    public $authorizeEndpoint = '';
-
-    /**
-     * The access token endpoint
-     * @var string
-     */
-    public $tokenEndpoint = '';
-
-    /**
      * The API endpoint
      * @var string
      */
     public $apiEndpoint = '';
 
     /**
-     * The client ID
+     * The authorization endpoint
      * @var string
      */
-    protected $id = '';
-
-    /**
-     * The client secret
-     * @var string
-     */
-    protected $secret = '';
+    public $authorizeEndpoint = '';
 
     /**
      * The callback URL
@@ -41,34 +23,34 @@ abstract class OAuth2
     protected $callback = '';
 
     /**
-     * The scope wanted
-     * @var array
-     */
-    protected $scope = [];
-
-    /**
-     * The token
-     * @var string
-     */
-    public $token = '';
-
-    /**
-     * The refresh token
-     * @var string
-     */
-    public $refreshToken = '';
-
-    /**
-     * Headers to include when getting token (when connecting to token endpoint)
-     * @var array
-     */
-    protected $tokenHeaders = [];
-
-    /**
      * The CURLOPT_USERPWD to use when making curl requests
      * @var string
      */
     protected $CURLOPT_USERPWD = '';
+
+    /**
+     * Whether the provider is in debug mode
+     * @var boolean
+     */
+    public $debugMode = false;
+
+    /**
+     * The default Content-Type header to use
+     * @var string
+     */
+    protected $defaultContentType = 'application/x-www-form-urlencoded';
+
+    /**
+     * Boolean indicating if we have tried to refresh the token
+     * @var boolean
+     */
+    public $hasRefreshed = false;
+
+    /**
+     * The client ID
+     * @var string
+     */
+    protected $id = '';
 
     /**
      * The last response received from the endpoint
@@ -77,10 +59,54 @@ abstract class OAuth2
     public $lastResponse = [];
 
     /**
-     * Boolean indicating if we have tried to refresh the token
+     * The refresh token
+     * @var string
+     */
+    public $refreshToken = '';
+
+    /**
+     * The scope wanted
+     * @var array
+     */
+    protected $scope = [];
+
+    /**
+     * The client secret
+     * @var string
+     */
+    protected $secret = '';
+
+    /**
+     * The token
+     * @var string
+     */
+    public $token = '';
+
+    /**
+     * The access token endpoint
+     * @var string
+     */
+    public $tokenEndpoint = '';
+
+    /**
+     * Headers to include when getting token (when connecting to token endpoint)
+     * @var array
+     */
+    protected $tokenHeaders = [
+      'Content-Type' => 'application/x-www-form-urlencoded'
+    ];
+
+    /**
+     * The callback to call when the tokens update
+     * @var function
+     */
+    protected $tokensUpdateCallback = null;
+
+    /**
+     * Whether to append a trailing slash to the api calls or not
      * @var boolean
      */
-    public $refreshed = false;
+    protected $trailingSlash = false;
 
     /**
      * Setup an OAuth2 provider
@@ -114,45 +140,59 @@ abstract class OAuth2
 
     /**
      * Makes a curl connection
-     * @param  string $method  The HTTP method to use ('get' | 'post')
-     * @param  string $url     The URL to connect to
-     * @param  array  $data    Data to use in the connection
-     * @param  array  $headers Headers to use in the connection
+     * @param  string $method   The HTTP method to use ('get' | 'post')
+     * @param  string $url      The URL to connect to
+     * @param  array  $data     Data to use in the connection
+     * @param  array  $headers  Headers to use in the connection
      * @return array
      */
     protected function curl($method, $url, $data = [], $headers = [])
     {
+        // we will keep original copies of the arguments so we can re-call this method
+        $args = [$method, $url, $data, $headers];
+
         if ($url != $this->tokenEndpoint) {
-            $url = $this->apiEndpoint . $url;
+            $url = rtrim($this->apiEndpoint . $url, '/');
+            if ($this->trailingSlash) {
+                $hasQuestionMark = strpos($url, '?') !== false;
+                $hasHash = strpos($url, '#') !== false;
+
+                if (!$hasHash && !$hasQuestionMark) {
+                    $url .= '/';
+                }
+            }
         }
 
         if ($data) {
-            if ($method == 'post' && isset($headers['Content-Type'])
-            && $headers['Content-Type'] == 'application/json') {
-                $data = json_encode($data);
-            } else {
-                $data = http_build_query($data);
+            if ($method == 'get') {
+                unset($headers['Content-Type']);
+            } elseif (!isset($headers['Content-Type'])) {
+                // delete, patch, post, put
+                $headers['Content-Type'] = $this->defaultContentType;
+            }
+
+            $data = isset($headers['Content-Type']) && $headers['Content-Type'] == 'application/json' ?
+                json_encode($data) :
+                http_build_query($data);
+
+            if ($method == 'get') {
+                $url .= '?' . $data;
             }
         }
 
         $ch = curl_init();
 
-        curl_setopt(
-            $ch,
-            CURLOPT_URL,
-            ($method == 'get' && $data) ? ($url . '?' . $data) : $url
-        );
+        curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $headers['Accept'] = 'application/json';
 
-        if ($method == 'post') {
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        if ($method != 'get') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
 
-            $headers['Content-Length'] = strlen($data);
-            if (!isset($headers['Content-Type'])) {
-                $headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            if ($data) {
+                $headers['Content-Length'] = strlen($data);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
             }
         }
 
@@ -171,50 +211,78 @@ abstract class OAuth2
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $curlHeaders);
 
-        $error = curl_error($ch);
+        if ($this->debugMode) {
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION, [$this, 'handleCurlResponseHeaders']);
+            print_r([$method, $url, $headers, $data]);
+            print(PHP_EOL);
+        }
+
         $output = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
 
         curl_close($ch);
 
-        // attempt to refresh the token and try again
-        if ($code == 401 && !$this->refreshed) {
-            $this->refreshed = true;
+        if ($this->debugMode) {
+            print_r($output);
+            print(PHP_EOL . PHP_EOL);
+        }
 
-            try {
-                $this->refresh();
-                return $this->curl(...func_get_args());
-            } catch (Exceptions\ProAuth $e) {
-                // if the refresh failed,
-                // let the original request throw the exception
-            }
+        // attempt to refresh the token and try again
+        if (($code == 401) && !$this->hasRefreshed) {
+            $this->hasRefreshed = true;
+
+            $this->refresh();
+            return $this->curl(...$args);
         }
 
         $response = json_decode($output, true);
         $this->lastResponse = $response;
 
+        if ($this->debugMode && $response) {
+            print_r($response);
+        }
+
         if (isset($response['errors']) && count($response['errors'])) {
-            throw new Exceptions\ProAuth($response['errors']);
+            throw new Exceptions\ProAuth($response['errors'], 501);
         }
 
         if ($code < 200 || $code >= 300) {
             $errors = [
-                ['message' => $url . ' responded with code: ' . $code],
-                ['message' => $output]
+                ['message' => $url . ' responded with code: ' . $code]
             ];
 
             if ($error) {
                 $errors[] = ['message' => $error];
             }
 
-            throw new Exceptions\ProAuth($errors);
+            if ($output) {
+                $errors[] = ['message' => "Output:\n" . $output];
+            }
+
+            throw new Exceptions\ProAuth($errors, $code);
         }
 
         return $response;
     }
 
     /**
+     * Make a DELETE connection to the API Endpoint
+     * @param  string $url     The URL to connect to
+     * @param  array  $data    Data to use in the connection
+     * @param  array  $headers Headers to use in the connection
+     * @return array
+     */
+    public function delete(...$args)
+    {
+        return $this->curl('delete', ...$args);
+    }
+
+    /**
      * Make a GET connection to the API Endpoint
+     * @param  string $url     The URL to connect to
+     * @param  array  $data    Data to use in the connection
+     * @param  array  $headers Headers to use in the connection
      * @return array
      */
     public function get(...$args)
@@ -240,24 +308,90 @@ abstract class OAuth2
             $this->tokenHeaders
         );
 
+        $didTokensUpdate = false;
+
         if (isset($response['access_token'])) {
-            $this->token = $response['access_token'];
+            $token = $response['access_token'];
+            if ($token != $this->token) {
+                $didTokensUpdate = true;
+            }
+
+            $this->token = $token;
         }
 
         if (isset($response['refresh_token'])) {
-            $this->refreshToken = $response['refresh_token'];
+            $token = $response['refresh_token'];
+            if ($token != $this->refreshToken) {
+                $didTokensUpdate = true;
+            }
+
+            $this->refreshToken = $token;
+        }
+
+        if ($didTokensUpdate && $this->tokensUpdateCallback) {
+            // we have to use __invoke here in order to call the closure
+            $this->tokensUpdateCallback->__invoke($this->token, $this->refreshToken);
         }
 
         return $response;
     }
 
     /**
+     * To make debugging easier, we pass this as a callback to CURLOPT_HEADERFUNCTION
+     * @param object $ch     The current curl object
+     * @param string $header The current header
+     * @return number
+     */
+    protected function handleCurlResponseHeaders($ch, $header)
+    {
+        print($header);
+        return strlen($header);
+    }
+
+    /**
+     * Sets a callback to call when tokens are updated
+     * @param  function $callback The callback to call
+     * @return void
+     */
+    public function onTokenUpdate($callback)
+    {
+        $this->tokensUpdateCallback = $callback;
+    }
+
+    /**
+     * Make a PATCH connection to the API endpoint
+     * @param  string $url     The URL to connect to
+     * @param  array  $data    Data to use in the connection
+     * @param  array  $headers Headers to use in the connection
+     * @return array
+     */
+    public function patch(...$args)
+    {
+        return $this->curl('patch', ...$args);
+    }
+
+    /**
      * Make a POST connection to the API endpoint
+     * @param  string $url     The URL to connect to
+     * @param  array  $data    Data to use in the connection
+     * @param  array  $headers Headers to use in the connection
      * @return array
      */
     public function post(...$args)
     {
         return $this->curl('post', ...$args);
+    }
+
+    /**
+     * Make a PUT connection to the API endpoint
+     * @param  string $url     The URL to connect to
+     * @param  array  $data    Data to use in the connection
+     * @param  array  $headers Headers to use in the connection
+     * @return array
+     */
+    public function put(...$args)
+    {
+        return $this->curl('put', ...$args);
     }
 
     /**

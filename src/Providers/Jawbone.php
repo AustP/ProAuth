@@ -5,6 +5,12 @@ namespace ProAuth\Providers;
 class Jawbone extends \ProAuth\OAuth2
 {
     /**
+     * The API endpoint
+     * @var string
+     */
+    public $apiEndpoint = 'https://jawbone.com/nudge/api/v.1.1/';
+
+    /**
      * The authorization endpoint
      * @var string
      */
@@ -15,10 +21,4 @@ class Jawbone extends \ProAuth\OAuth2
      * @var string
      */
     public $tokenEndpoint = 'https://jawbone.com/auth/oauth2/token';
-
-    /**
-     * The API endpoint
-     * @var string
-     */
-    public $apiEndpoint = 'https://jawbone.com/nudge/api/v.1.1/';
 }
