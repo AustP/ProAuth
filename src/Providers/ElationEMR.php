@@ -8,7 +8,7 @@ class ElationEMR extends \ProAuth\OAuth2
      * The API endpoint
      * @var string
      */
-    public $apiEndpoint = 'https://elationemr.com/api/2.0/';
+    public $apiEndpoint = 'https://app.elationemr.com/api/2.0/';
 
     /**
      * The authorization endpoint
@@ -32,7 +32,7 @@ class ElationEMR extends \ProAuth\OAuth2
      * The access token endpoint
      * @var string
      */
-    public $tokenEndpoint = 'https://elationemr.com/api/2.0/oauth2/token/';
+    public $tokenEndpoint = 'https://app.elationemr.com/api/2.0/oauth2/token/';
 
     /**
      * Whether to append a trailing slash to the api calls or not
