@@ -164,20 +164,21 @@ abstract class OAuth2
         }
 
         if ($data) {
-            if ($method == 'get') {
-                unset($headers['Content-Type']);
-            } elseif (!isset($headers['Content-Type'])) {
-                // delete, patch, post, put
-                $headers['Content-Type'] = $this->defaultContentType;
-            }
+           if ($method == 'get') {
+               unset($headers['Content-Type']);
+               $url .= '?' . http_build_query($data);
+           } else {
+               if (!isset($headers['Content-Type'])) {
+                   $headers['Content-Type'] = $this->defaultContentType;
+               }
 
-            $data = isset($headers['Content-Type']) && $headers['Content-Type'] == 'application/json' ?
-                json_encode($data) :
-                http_build_query($data);
-
-            if ($method == 'get') {
-                $url .= '?' . $data;
-            }
+               // encode data as per our request
+               if ($headers['Content-Type'] === 'application/json') {
+                   $data = json_encode($data);
+               } elseif ($headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+                   $data = http_build_query($data);
+               }
+           }
         }
 
         $ch = curl_init();
